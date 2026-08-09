@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video to MP4</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <header class="header">
+      <div>
+        <div class="eyebrow">Локальный конвертер</div>
+        <h1>Video → MP4</h1>
+        <p>MOV и AVI → MP4 (H.264 + AAC). Файлы остаются на вашем компьютере.</p>
+      </div>
+    </header>
+
+    <section class="panel controls-panel">
+      <div class="button-row">
+        <button id="addButton" class="button button-primary">+ Добавить видео</button>
+        <button id="clearButton" class="button button-ghost">Очистить</button>
+      </div>
+
+      <div class="output-row">
+        <div class="output-copy">
+          <span class="label">Папка для MP4</span>
+          <div id="outputPath" class="path-text">Не выбрана</div>
+        </div>
+        <button id="outputButton" class="button button-secondary">Выбрать папку</button>
+      </div>
+    </section>
+
+    <section class="panel queue-panel">
+      <div class="section-title-row">
+        <h2>Очередь</h2>
+        <span id="summaryText" class="muted">0 файлов в очереди</span>
+      </div>
+
+      <div id="emptyState" class="empty-state">
+        <div class="empty-icon">▶</div>
+        <div>Перетащите сюда или добавьте любое количество файлов .mov или .avi</div>
+      </div>
+      <div id="fileList" class="file-list"></div>
+    </section>
+
+    <section id="totalProgress" class="total-progress" hidden>
+      <div class="total-track"><div id="totalProgressBar" class="total-fill"></div></div>
+    </section>
+
+    <footer class="footer-actions">
+      <button id="openFolderButton" class="button button-ghost" disabled>Открыть папку</button>
+      <div class="footer-right">
+        <button id="cancelButton" class="button button-danger" hidden>Отменить</button>
+        <button id="convertButton" class="button button-primary button-large" disabled>Конвертировать в MP4</button>
+      </div>
+    </footer>
+  </main>
+  <script src="renderer.js"></script>
+</body>
+</html>
