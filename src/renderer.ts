@@ -16,6 +16,7 @@ let lastFailedCount = 0;
 const addButton = document.querySelector<HTMLButtonElement>('#addButton')!;
 const clearButton = document.querySelector<HTMLButtonElement>('#clearButton')!;
 const outputButton = document.querySelector<HTMLButtonElement>('#outputButton')!;
+const compressionToggle = document.querySelector<HTMLInputElement>('#compressionToggle')!;
 const convertButton = document.querySelector<HTMLButtonElement>('#convertButton')!;
 const cancelButton = document.querySelector<HTMLButtonElement>('#cancelButton')!;
 const openFolderButton = document.querySelector<HTMLButtonElement>('#openFolderButton')!;
@@ -110,6 +111,7 @@ function render(): void {
   addButton.disabled = isConverting;
   clearButton.disabled = isConverting || items.length === 0;
   outputButton.disabled = isConverting;
+  compressionToggle.disabled = isConverting;
   cancelButton.hidden = !isConverting;
   convertButton.hidden = isConverting;
   openFolderButton.disabled = !outputDir;
@@ -187,7 +189,7 @@ convertButton.addEventListener('click', async () => {
   render();
 
   try {
-    const result = await window.videoAPI.convertVideos([...queue.keys()], outputDir);
+    const result = await window.videoAPI.convertVideos([...queue.keys()], outputDir, compressionToggle.checked);
     if (result.cancelled) {
       for (const item of queue.values()) {
         if (item.status === 'waiting' || item.status === 'converting') {

@@ -12,7 +12,7 @@
       <div>
         <div class="eyebrow">Локальный конвертер</div>
         <h1>Video → MP4</h1>
-        <p>MOV и AVI → MP4 (H.264 + AAC). Файлы остаются на вашем компьютере.</p>
+        <p>MOV и AVI → MP4. Файлы остаются на вашем компьютере.</p>
       </div>
     </header>
 
@@ -28,6 +28,14 @@
           <div id="outputPath" class="path-text">Не выбрана</div>
         </div>
         <button id="outputButton" class="button button-secondary">Выбрать папку</button>
+      </div>
+
+      <div class="compression-option">
+        <label class="compression-label">
+          <input id="compressionToggle" type="checkbox" aria-describedby="compressionHint" />
+          <span>Сжимать видео</span>
+        </label>
+        <p id="compressionHint">Уменьшает размер с небольшой потерей качества. Без сжатия сохраняется исходное качество; для несовместимых с MP4 файлов потребуется включить эту опцию.</p>
       </div>
     </section>
 

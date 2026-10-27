@@ -4,8 +4,8 @@ contextBridge.exposeInMainWorld('videoAPI', {
   selectVideos: (): Promise<string[]> => ipcRenderer.invoke('select-videos'),
   getPathForFile: (file: File): string => webUtils.getPathForFile(file),
   selectOutputDir: (): Promise<string | null> => ipcRenderer.invoke('select-output-dir'),
-  convertVideos: (files: string[], outputDir: string) =>
-    ipcRenderer.invoke('convert-videos', { files, outputDir }),
+  convertVideos: (files: string[], outputDir: string, compress: boolean) =>
+    ipcRenderer.invoke('convert-videos', { files, outputDir, compress }),
   cancelConversion: (): Promise<void> => ipcRenderer.invoke('cancel-conversion'),
   openFolder: (folderPath: string): Promise<void> => ipcRenderer.invoke('open-folder', folderPath),
   onProgress: (callback: (payload: ConversionProgress) => void) => {

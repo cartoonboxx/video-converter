@@ -10,6 +10,7 @@ type ProgressStatus = 'waiting' | 'converting' | 'done' | 'error' | 'cancelled';
 interface ConvertRequest {
   files: string[];
   outputDir: string;
+  compress?: boolean;
 }
 
 interface ProgressEvent {
@@ -103,30 +104,41 @@ function sendProgress(payload: ProgressEvent): void {
   mainWindow?.webContents.send('conversion-progress', payload);
 }
 
+// Quality-based encoding saves space on simple scenes and allows more detail
+// in complex scenes. VBV limits bitrate spikes without forcing a fixed file size.
+const VIDEO_CRF = '22';
+const VIDEO_MAXRATE = '7500k';
+const VIDEO_BUFSIZE = '15000k';
+const AUDIO_BITRATE = '128k';
+
 function convertOne(
   inputPath: string,
   outputPath: string,
   index: number,
-  total: number
+  total: number,
+  compress = false
 ): Promise<void> {
+  if (cancelRequested) return Promise.reject(new Error('CONVERSION_CANCELLED'));
+
   return new Promise((resolve, reject) => {
     const ffmpeg = resolveFfmpegPath();
     let durationSeconds = 0;
     let errorOutput = '';
-
+    let lastPercent = 0;
     const args = [
-      '-hide_banner',
-      '-nostdin',
-      '-y',
+      '-hide_banner', '-nostdin', '-y',
       '-i', inputPath,
-      '-map', '0:v:0?',
-      '-map', '0:a:0?',
-      '-c:v', 'libx264',
-      '-preset', 'medium',
-      '-crf', '20',
-      '-pix_fmt', 'yuv420p',
-      '-c:a', 'aac',
-      '-b:a', '192k',
+      '-map', '0:v:0',
+      '-map', compress ? '0:a:0?' : '0:a?',
+      ...(compress ? [
+        '-c:v', 'libx264',
+        '-preset', 'slow',
+        '-crf', VIDEO_CRF,
+        '-maxrate', VIDEO_MAXRATE,
+        '-bufsize', VIDEO_BUFSIZE,
+        '-pix_fmt', 'yuv420p',
+        '-c:a', 'aac', '-b:a', AUDIO_BITRATE,
+      ] : ['-c', 'copy']),
       '-movflags', '+faststart',
       outputPath
     ];
@@ -136,28 +148,22 @@ function convertOne(
 
     currentProcess.stderr.setEncoding('utf8');
     currentProcess.stderr.on('data', (chunk: string) => {
-      errorOutput += chunk;
-      if (errorOutput.length > 12000) {
-        errorOutput = errorOutput.slice(-12000);
-      }
+      errorOutput = (errorOutput + chunk).slice(-12000);
+      const durationMatch = errorOutput.match(/Duration:\s*(\d{2}:\d{2}:\d{2}(?:\.\d+)?)/);
+      if (durationMatch) durationSeconds = secondsFromTimestamp(durationMatch[1]);
 
-      const durationMatch = chunk.match(/Duration:\s*(\d{2}:\d{2}:\d{2}(?:\.\d+)?)/);
-      if (durationMatch) {
-        durationSeconds = secondsFromTimestamp(durationMatch[1]);
-      }
-
-      const timeMatches = [...chunk.matchAll(/time=(\d{2}:\d{2}:\d{2}(?:\.\d+)?)/g)];
+      const timeMatches = [...errorOutput.matchAll(/time=(\d{2}:\d{2}:\d{2}(?:\.\d+)?)/g)];
       const lastTime = timeMatches.at(-1)?.[1];
       if (lastTime && durationSeconds > 0) {
         const currentSeconds = secondsFromTimestamp(lastTime);
-        const percent = Math.min(99, Math.max(0, (currentSeconds / durationSeconds) * 100));
+        lastPercent = Math.max(lastPercent, Math.min(99, (currentSeconds / durationSeconds) * 100));
         sendProgress({
           index,
           total,
           inputPath,
           outputPath,
           fileName: path.basename(inputPath),
-          percent,
+          percent: lastPercent,
           status: 'converting'
         });
       }
@@ -170,21 +176,16 @@ function convertOne(
 
     currentProcess.on('close', (code) => {
       currentProcesses.delete(currentProcess);
-
       if (cancelRequested) {
         reject(new Error('CONVERSION_CANCELLED'));
-        return;
-      }
-
-      if (code === 0) {
+      } else if (code === 0) {
         resolve();
       } else {
-        const usefulMessage = errorOutput
-          .split(/\r?\n/)
-          .filter(Boolean)
-          .slice(-8)
-          .join('\n');
-        reject(new Error(usefulMessage || `FFmpeg exited with code ${code ?? 'unknown'}`));
+        const usefulMessage = errorOutput.split(/\r?\n/).filter(Boolean).slice(-8).join('\n');
+        const incompatibleCodecs = /Could not find tag|not (?:currently )?supported in container|Could not write header/i.test(errorOutput);
+        reject(new Error(!compress && incompatibleCodecs
+          ? 'Исходные кодеки несовместимы с MP4. Включите «Сжимать видео» и повторите конвертацию.'
+          : usefulMessage || `FFmpeg exited with code ${code ?? 'unknown'}`));
       }
     });
   });
@@ -251,6 +252,7 @@ ipcMain.handle('cancel-conversion', () => {
 
 ipcMain.handle('convert-videos', async (_event, request: ConvertRequest) => {
   const { files, outputDir } = request;
+  const compress = request.compress === true;
 
   if (!Array.isArray(files) || files.length === 0) {
     throw new Error('Не выбраны файлы для конвертации.');
@@ -317,7 +319,7 @@ ipcMain.handle('convert-videos', async (_event, request: ConvertRequest) => {
     }
 
     try {
-      await convertOne(inputPath, outputPath, index, files.length);
+      await convertOne(inputPath, outputPath, index, files.length, compress);
       results.push({ inputPath, outputPath, ok: true });
       sendProgress({
         index,

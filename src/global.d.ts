@@ -28,7 +28,7 @@ interface Window {
     selectVideos(): Promise<string[]>;
     getPathForFile(file: File): string;
     selectOutputDir(): Promise<string | null>;
-    convertVideos(files: string[], outputDir: string): Promise<ConvertSummary>;
+    convertVideos(files: string[], outputDir: string, compress: boolean): Promise<ConvertSummary>;
     cancelConversion(): Promise<void>;
     openFolder(folderPath: string): Promise<void>;
     onProgress(callback: (payload: ConversionProgress) => void): () => void;
